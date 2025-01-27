@@ -4,15 +4,15 @@ import mediapipe as mp
 import numpy as np
 from collections import deque
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"        #Nível de log gerado pelo tensorflow (silencia tudo exceto mensagens críticas)
 
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 hands = mp_hands.Hands(
     static_image_mode=False,
     max_num_hands=2,
-    min_detection_confidence=0.6,
-    min_tracking_confidence=0.6
+    min_detection_confidence=0.7,
+    min_tracking_confidence=0.7
 )
 
 cap = cv2.VideoCapture(0)
@@ -20,14 +20,14 @@ cap = cv2.VideoCapture(0)
 history = deque(maxlen=5)
 
 while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret:
+    cam_success, frame = cap.read()
+    if not cam_success:
         break
 
-    frame = cv2.flip(frame, 1)
+    #frame = cv2.flip(frame, 1)
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = hands.process(frame_rgb)
-    frame_counter = np.zeros((frame.shape[0], 300, 3), dtype=np.uint8)
+    frame_counter = np.zeros((frame.shape[0], 400, 3), dtype=np.uint8)
     dedos_levantados = 0
 
     if results.multi_hand_landmarks:
@@ -70,7 +70,7 @@ while cap.isOpened():
     frame_final = np.hstack((frame, frame_counter))
     cv2.imshow("-", frame_final)
 
-    if cv2.waitKey(10) & 0xFF == ord('q'):
+    if cv2.waitKey(10) & 0xFF == ord('q'):                  #Aperte a tecla Q para fechar a janela
         break
 
 cap.release()
