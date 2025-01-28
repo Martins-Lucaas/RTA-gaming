@@ -19,6 +19,6 @@ print
 
 for i in range(num_neuronio_camada_prox):
     for j in range(num_neuronio_camada_atual):
-        saidas[i] = saidas[i] + (entradas[j]*pesos[i][j])
+        saidas[i] += (entradas[j]*pesos[i][j])
 
 print(saidas)
