@@ -18,9 +18,10 @@ screen_width, screen_height = pyautogui.size()
 # Variáveis de controle
 primary_hand = None  # "left" ou "right"
 selection_done = False
-click_delay = 1  # segundos para evitar cliques repetidos
-last_right_click_time = 0
-last_left_click_time = 0
+
+# Variáveis para cliques sustentados
+left_button_pressed = False
+right_button_pressed = False
 
 def is_hand_closed(hand_landmarks, image_height):
     """
@@ -88,25 +89,32 @@ while cap.isOpened():
             cursor_y = int(index_finger.y * screen_height)
             pyautogui.moveTo(cursor_x, cursor_y, duration=0.01)
 
-            # Verifica se a mão está fechada para clique direito
-            current_time = time.time()
+            # --- Lógica para clique direito (mão fechada) ---
             if is_hand_closed(hand_landmarks, h):
-                if current_time - last_right_click_time > click_delay:
-                    pyautogui.click(button='right')
-                    last_right_click_time = current_time
-                    print("Clique direito")
-            # Verifica gesto de pinça para clique esquerdo
-            elif is_left_click(hand_landmarks, w, h):
-                if current_time - last_left_click_time > click_delay:
-                    pyautogui.click(button='left')
-                    last_left_click_time = current_time
-                    print("Clique esquerdo")
+                if not right_button_pressed:
+                    pyautogui.mouseDown(button='right')
+                    right_button_pressed = True
+                    print("Clique direito pressionado")
+            else:
+                if right_button_pressed:
+                    pyautogui.mouseUp(button='right')
+                    right_button_pressed = False
+                    print("Clique direito liberado")
+
+            # --- Lógica para clique esquerdo (pinça) ---
+            if is_left_click(hand_landmarks, w, h):
+                if not left_button_pressed:
+                    pyautogui.mouseDown(button='left')
+                    left_button_pressed = True
+                    print("Clique esquerdo pressionado")
+            else:
+                if left_button_pressed:
+                    pyautogui.mouseUp(button='left')
+                    left_button_pressed = False
+                    print("Clique esquerdo liberado")
 
             # Desenha os landmarks da mão primária para feedback visual
-            if primary_hand == "left":
-                mp_draw.draw_landmarks(frame, hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-            else:
-                mp_draw.draw_landmarks(frame, hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+            mp_draw.draw_landmarks(frame, hand_landmarks, mp_holistic.HAND_CONNECTIONS)
 
     # Exibe a janela com os resultados
     cv2.imshow("Controle de Mouse", frame)
