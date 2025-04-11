@@ -1,0 +1,43 @@
+name: Update Leaderboard
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  update_leaderboard:
+    if: startsWith(github.event.issue.title, 'Game Result Submission') && contains(github.event.comment.body, 'accept') && github.actor == 'ChunhThanhDe'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run updateLeaderboard script
+        id: update_leaderboard
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const updateLeaderboard = require('./.github/updateLeaderboard.js');
+            const result = await updateLeaderboard({ github, context });
+            return result;
+
+      - name: Commit changes
+        if: steps.update_leaderboard.outputs.result == 'true'
+        run: |
+          git config --global user.name 'Github Actions'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md
+          git commit -m ':sparkles: Update leaderboard' || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }} HEAD:main
+
+      - name: Close Issue
+        if: steps.update_leaderboard.outputs.result == 'true'
+        uses: peter-evans/close-issue@v3
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          comment: Have fun playing! 🎉 Your score has been added to the Leaderboard, and the issue has been automatically closed! ✅
+

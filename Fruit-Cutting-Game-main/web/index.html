@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="/Fruit-Cutting-Game/">
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description"
+        content="A fun and interactive Fruit Cutting Game built using Flutter. 🎮">
+  <meta name="keywords"
+        content="Nguyễn Thành Chung, Chung Nguyen Thanh, Nguyen Thanh Chung, ChunhThanhDe, ChunhThanhDe Software Engineers in VietNam, flutter example, Fruit Cutting Game, Fruit Ninja">
+  <meta name="author" content="ChunhThanhDe">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="fruit_cutting_game">
+  <link rel="apple-touch-icon" href="./assets/icons/fruit_cutting_logo.png">
+
+  <title>Fruit Cutting Game 🍎</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="./assets/icons/fruit_cutting_logo.png"/>
+  <link rel="manifest" href="./assets/manifest.json">
+
+  <style>
+    /* Set body and html to full height and remove margins */
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: black; /* Set background to black */
+      display: flex;
+      justify-content: center;
+      align-items: center; /* Center the content vertically */
+    }
+    /* Style for the loading image */
+    #loading-image {
+      height: 250px; /* Set fixed height for the GIF */
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading image -->
+  <img id="loading-image" src="./assets/load.gif" alt="Loading...">
+
+  <script>
+    // Remove loading image after 10 seconds
+    window.onload = function () {
+      setTimeout(function () {
+        var loadingIndicator = document.getElementById("loading-image");
+        if (loadingIndicator) {
+          loadingIndicator.remove();
+        }
+      }, 10000);
+    };
+  </script>
+
+  <script src="main.dart.js" type="application/javascript"></script>
+</body>
+</html>

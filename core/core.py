@@ -1,125 +1,95 @@
 import cv2
 import mediapipe as mp
 import pyautogui
-import math
-import time
 
-# Inicializa o Mediapipe Holistic para detectar pose e mãos
-mp_holistic = mp.solutions.holistic
-holistic = mp_holistic.Holistic(min_detection_confidence=0.8, min_tracking_confidence=0.9)
-mp_draw = mp.solutions.drawing_utils
+# Inicializações do MediaPipe e pyautogui:
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
 
-# Captura de vídeo
+# Obter resolução da tela para mapear as coordenadas da câmera
+screen_w, screen_h = pyautogui.size()
+
+# Inicializa captura de vídeo da webcam.
 cap = cv2.VideoCapture(0)
 
-# Pega tamanho da tela para mapear os movimentos da mão para o cursor
-screen_width, screen_height = pyautogui.size()
+clicking = False  # Estado para monitorar se o clique já está ativo
 
-# Variáveis de controle
-primary_hand = None  # "left" ou "right"
-selection_done = False
+with mp_hands.Hands(max_num_hands=1,
+                    min_detection_confidence=0.5,
+                    min_tracking_confidence=0.5) as hands:
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-# Variáveis para cliques sustentados
-left_button_pressed = False
-right_button_pressed = False
+        # Espelha a imagem para funcionar como um "espelho"
+        frame = cv2.flip(frame, 1)
+        
+        # Converter BGR para RGB para processamento pelo MediaPipe
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image.flags.writeable = False  # Melhora performance
+        results = hands.process(image)
+        image.flags.writeable = True
+        # Converter de volta para BGR
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-def is_hand_closed(hand_landmarks, image_height):
-    """
-    Verifica se os 4 dedos (exceto o polegar) estão dobrados,
-    comparando a posição do tip com a posição do PIP.
-    """
-    fingers = [(8, 6), (12, 10), (16, 14), (20, 18)]
-    closed_count = 0
-    for tip, pip in fingers:
-        tip_y = hand_landmarks.landmark[tip].y * image_height
-        pip_y = hand_landmarks.landmark[pip].y * image_height
-        if tip_y > pip_y:  # no sistema de coordenadas da imagem, y aumenta para baixo
-            closed_count += 1
-    return closed_count == 4
+        if results.multi_hand_landmarks:
+            # Considera apenas a primeira mão detectada
+            hand_landmarks = results.multi_hand_landmarks[0]
+            
+            # Desenha as landmarks na imagem para visualização
+            mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+            
+            # Obtém as dimensões da imagem capturada
+            h, w, c = image.shape
+            # Localiza a ponta do dedo indicador (landmark 8)
+            index_finger_tip = hand_landmarks.landmark[8]
+            # Converte a posição normalizada para coordenadas da tela
+            x_index = int(index_finger_tip.x * screen_w)
+            y_index = int(index_finger_tip.y * screen_h)
+            # Move o mouse para a posição definida
+            pyautogui.moveTo(x_index, y_index)
 
-def is_left_click(hand_landmarks, image_width, image_height):
-    """
-    Detecta gesto de pinça: distância entre o dedo indicador (landmark 8)
-    e o polegar (landmark 4) menor que um limiar.
-    """
-    x1, y1 = hand_landmarks.landmark[8].x * image_width, hand_landmarks.landmark[8].y * image_height
-    x2, y2 = hand_landmarks.landmark[4].x * image_width, hand_landmarks.landmark[4].y * image_height
-    distance = math.hypot(x2 - x1, y2 - y1)
-    return distance < 40  # limiar em pixels (pode precisar de ajuste)
-
-while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    frame = cv2.flip(frame, 1)  # espelha a imagem para interação mais natural
-    h, w, _ = frame.shape
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = holistic.process(frame_rgb)
-
-    # Durante a seleção do braço primário: verifica ambas as mãos
-    if not selection_done:
-        hand_candidates = []
-        if results.left_hand_landmarks:
-            if is_hand_closed(results.left_hand_landmarks, h):
-                hand_candidates.append("left")
-        if results.right_hand_landmarks:
-            if is_hand_closed(results.right_hand_landmarks, h):
-                hand_candidates.append("right")
-        if hand_candidates:
-            primary_hand = hand_candidates[0]  # o primeiro que fechar a mão
-            selection_done = True
-            print(f"Braço primário definido: {primary_hand}")
-            time.sleep(1)  # pausa breve para evitar detecção múltipla
-
-    # Se o braço primário já foi definido, usar essa mão para controlar o mouse
-    if selection_done:
-        # Seleciona os landmarks da mão primária
-        hand_landmarks = None
-        if primary_hand == "left" and results.left_hand_landmarks:
-            hand_landmarks = results.left_hand_landmarks
-        elif primary_hand == "right" and results.right_hand_landmarks:
-            hand_landmarks = results.right_hand_landmarks
-
-        if hand_landmarks:
-            # Movimenta o cursor: utiliza o dedo indicador (landmark 8)
-            index_finger = hand_landmarks.landmark[8]
-            # Mapeia as coordenadas da câmera para as coordenadas da tela
-            cursor_x = int(index_finger.x * screen_width)
-            cursor_y = int(index_finger.y * screen_height)
-            pyautogui.moveTo(cursor_x, cursor_y, duration=0.01)
-
-            # --- Lógica para clique direito (mão fechada) ---
-            if is_hand_closed(hand_landmarks, h):
-                if not right_button_pressed:
-                    pyautogui.mouseDown(button='right')
-                    right_button_pressed = True
-                    print("Clique direito pressionado")
+            # Heurística para detectar punho fechado:
+            # Compara a posição y dos dedos com a dos respectivos nós intermediários.
+            # Nota: não estamos tratando o polegar, pois sua orientação é diferente.
+            dedos_dobrados = []
+            # Dedo indicador: landmark 8 (ponta) vs landmark 6 (no intermediário)
+            if hand_landmarks.landmark[8].y > hand_landmarks.landmark[6].y:
+                dedos_dobrados.append(True)
             else:
-                if right_button_pressed:
-                    pyautogui.mouseUp(button='right')
-                    right_button_pressed = False
-                    print("Clique direito liberado")
-
-            # --- Lógica para clique esquerdo (pinça) ---
-            if is_left_click(hand_landmarks, w, h):
-                if not left_button_pressed:
-                    pyautogui.mouseDown(button='left')
-                    left_button_pressed = True
-                    print("Clique esquerdo pressionado")
+                dedos_dobrados.append(False)
+            # Dedo médio: landmark 12 vs landmark 10
+            if hand_landmarks.landmark[12].y > hand_landmarks.landmark[10].y:
+                dedos_dobrados.append(True)
             else:
-                if left_button_pressed:
-                    pyautogui.mouseUp(button='left')
-                    left_button_pressed = False
-                    print("Clique esquerdo liberado")
+                dedos_dobrados.append(False)
+            # Dedo anelar: landmark 16 vs landmark 14
+            if hand_landmarks.landmark[16].y > hand_landmarks.landmark[14].y:
+                dedos_dobrados.append(True)
+            else:
+                dedos_dobrados.append(False)
+            # Dedo mínimo: landmark 20 vs landmark 18
+            if hand_landmarks.landmark[20].y > hand_landmarks.landmark[18].y:
+                dedos_dobrados.append(True)
+            else:
+                dedos_dobrados.append(False)
 
-            # Desenha os landmarks da mão primária para feedback visual
-            mp_draw.draw_landmarks(frame, hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+            # Se todos os dedos (exceto o polegar) estiverem dobrados, considera mão fechada
+            punho_fechado = all(dedos_dobrados)
 
-    # Exibe a janela com os resultados
-    cv2.imshow("Controle de Mouse", frame)
-    if cv2.waitKey(10) & 0xFF == ord('q'):
-        break
+            # Controle do clique do mouse baseado no gesto
+            if punho_fechado and not clicking:
+                pyautogui.mouseDown()  # Pressiona o botão esquerdo do mouse
+                clicking = True
+            elif not punho_fechado and clicking:
+                pyautogui.mouseUp()    # Libera o botão
+                clicking = False
+
+        # Exibe a imagem com as landmarks
+        cv2.imshow('Controle de Mouse com Mão', image)
+        if cv2.waitKey(10) & 0xFF == ord('q'):
+            break
 
 cap.release()
 cv2.destroyAllWindows()

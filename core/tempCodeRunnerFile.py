@@ -1,1 +1,1 @@
-ord('q')
+print("olá")
