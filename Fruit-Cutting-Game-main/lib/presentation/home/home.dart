@@ -1,3 +1,5 @@
+// ignore_for_file: unused_field
+
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'package:fruit_cutting_game/common/widgets/button/rounded_button.dart';

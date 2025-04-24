@@ -1,3 +1,5 @@
+// ignore_for_file: override_on_non_overriding_member
+
 import 'dart:math';
 import 'dart:ui';
 
@@ -125,13 +127,13 @@ class GamePage extends Component
         textRenderer: _countdownTextPaint,
       ),
       _mistakeTextComponent = TextComponent(
-        text: 'Mistake: $mistakeCount',
+        text: 'Erros: $mistakeCount',
         position: Vector2(game.size.x - 15, 10),
         anchor: Anchor.topRight,
         textRenderer: _mistakeTextPaint,
       ),
       _scoreTextComponent = TextComponent(
-        text: 'Score: $score',
+        text: 'Pontuação: $score',
         position: Vector2(game.size.x - 15, _mistakeTextComponent!.position.y + 40),
         anchor: Anchor.topRight,
         textRenderer: _scoreTextPaint,
